@@ -2,11 +2,7 @@
 
 const { getLast } = require("../common/util");
 const { locStart, locEnd } = require("./loc");
-const {
-  cjkPattern,
-  kPattern,
-  punctuationPattern,
-} = require("./constants.evaluate");
+const { cjkPattern, punctuationPattern } = require("./constants.evaluate");
 
 const INLINE_NODE_TYPES = [
   "liquidNode",
@@ -34,7 +30,6 @@ const INLINE_NODE_WRAPPER_TYPES = INLINE_NODE_TYPES.concat([
   "heading",
 ]);
 
-const kRegex = new RegExp(kPattern);
 const punctuationRegex = new RegExp(punctuationPattern);
 
 /**
@@ -44,8 +39,7 @@ const punctuationRegex = new RegExp(punctuationPattern);
  */
 function splitText(text, options) {
   const KIND_NON_CJK = "non-cjk";
-  const KIND_CJ_LETTER = "cj-letter";
-  const KIND_K_LETTER = "k-letter";
+  const KIND_CJK_LETTER = "cjk-letter";
   const KIND_CJK_PUNCTUATION = "cjk-punctuation";
 
   const nodes = [];
@@ -110,9 +104,7 @@ function splitText(text, options) {
               : {
                   type: "word",
                   value: innerToken,
-                  kind: kRegex.test(innerToken)
-                    ? KIND_K_LETTER
-                    : KIND_CJ_LETTER,
+                  kind: KIND_CJK_LETTER,
                   hasLeadingPunctuation: false,
                   hasTrailingPunctuation: false,
                 }
@@ -126,16 +118,8 @@ function splitText(text, options) {
     const lastNode = getLast(nodes);
     if (lastNode && lastNode.type === "word") {
       if (
-        (lastNode.kind === KIND_NON_CJK &&
-          node.kind === KIND_CJ_LETTER &&
-          !lastNode.hasTrailingPunctuation) ||
-        (lastNode.kind === KIND_CJ_LETTER &&
-          node.kind === KIND_NON_CJK &&
-          !node.hasLeadingPunctuation)
-      ) {
-        nodes.push({ type: "whitespace", value: " " });
-      } else if (
         !isBetween(KIND_NON_CJK, KIND_CJK_PUNCTUATION) &&
+        !isBetween(KIND_CJK_PUNCTUATION, KIND_NON_CJK) &&
         // disallow leading/trailing full-width whitespace
         ![lastNode.value, node.value].some((value) => /\u3000/.test(value))
       ) {
@@ -145,10 +129,7 @@ function splitText(text, options) {
     nodes.push(node);
 
     function isBetween(kind1, kind2) {
-      return (
-        (lastNode.kind === kind1 && node.kind === kind2) ||
-        (lastNode.kind === kind2 && node.kind === kind1)
-      );
+      return lastNode.kind === kind1 && node.kind === kind2;
     }
   }
 }
